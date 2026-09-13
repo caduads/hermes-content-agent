@@ -79,13 +79,10 @@ set -eu
 # HERMES_HOME ownership fixes remain upstream-controlled.
 /opt/hermes/docker/stage2-hook-upstream.sh "$@"
 
-# Railway mounts the persistent volume at /data, while the official image
-# normally owns /opt/data. HERMES_HOME is dedicated runtime state, so repair
-# stale ownership left by earlier images or root bootstrap operations. Keep the
-# user workspace non-recursive: it may contain intentionally foreign-owned data.
-mkdir -p /data/.hermes /data/workspace
-chown hermes:hermes /data /data/workspace
-chown -R hermes:hermes /data/.hermes
+# Railway mounts the persistent volume at /data. Make the whole volume owned by
+# the final (possibly UID/GID-remapped) Hermes user before starting the gateway.
+mkdir -p /data/.hermes /data/workspace /data/workspaces
+chown -R hermes:hermes /data
 EOF
 
 CMD ["/app/scripts/entrypoint.sh"]
