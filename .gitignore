@@ -10,3 +10,9 @@ __pycache__/
 node_modules/
 dist/
 build/
+
+# content-agent
+data/
+.env
+__pycache__/
+*.pyc

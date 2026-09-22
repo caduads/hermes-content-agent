@@ -1,0 +1,69 @@
+# content-agent — configuração do produto (alterável sem código)
+# Valores marcados como "pendente" aguardam decisão do operador (briefing seção 26).
+
+idiomas:
+  base: pt-BR
+  variantes: [pt-BR, en, es]
+  mercados:
+    en: pendente          # país-alvo do inglês (afeta adaptação comercial)
+    es: pendente          # país-alvo do espanhol
+
+nichos:
+  permitidos: []          # vazio = pesquisar/comparar candidatos
+  proibidos:              # alto risco por padrão (briefing seção 11)
+    - aconselhamento_medico
+    - aconselhamento_juridico
+    - aconselhamento_financeiro
+    - politica
+  hipoteses_iniciais:
+    - ferramentas_digitais
+    - organizacao_casa
+    - hobbies_criativos_iniciantes
+  max_candidatos_piloto: 3
+  amostra_min_por_nicho: 10
+  criadores_min_por_nicho: 5
+
+producao:
+  formato: "9:16"
+  duracao_padrao_seg: 45
+  duracao_max_seg: 90
+  max_ideias_por_rodada: 2
+  max_revisoes_automaticas: 2
+
+orcamento:
+  mensal_brl: 200
+  politica_gastos_mvp: "somente_gratis"   # pergunta ao operador antes de qualquer pago
+  flow_reserva_refacao_percent: 20
+
+provedores:
+  # ordem de fallback; validar cada um no ambiente real antes de ativar
+  llm:
+    - id: openrouter:nvidia/nemotron-3.5-lightning:free
+      prioridade: 1
+    - id: openrouter:qwen/qwen3.8-27b:free
+      prioridade: 2
+  voz:
+    preferido: pendente     # edge-tts (grátis) como default de desenvolvimento
+  video:
+    flow_modo: aguardando_operacao_flow   # até validar via oficialmente permitida
+
+telegram:
+  topicos:
+    - Central
+    - Nichos e oportunidades
+    - Produção
+    - Entregas
+    - Custos e falhas
+  usuarios_autorizados: pendente   # IDs numéricos (allowlist)
+
+agenda:
+  pesquisa_ampla: "semanal"
+  atualizacao_oportunidades: "dias_uteis"
+  resumo_diario: "somente_se_mudanca"
+  backup: "diario"
+  horarios_silencio: pendente
+
+flow_contas:
+  total: 5
+  creditos_por_conta_mes: 1000
+  via_operacao: pendente   # forma permitida de operar as 5 contas
