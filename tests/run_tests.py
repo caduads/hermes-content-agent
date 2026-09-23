@@ -51,7 +51,7 @@ def test_idempotency():
 
 def test_redaction():
     print("test_redaction")
-    tok = "8803248978:AAHuerT4hSwH8KO7xNL8Wa83Pg4ronqueo0"
+    tok = "1234567890:AAHtest-DUMMY-telegram-token-not-real-000000"
     out = ids.redact(f"conectando com token {tok} agora")
     check(tok not in out and "[REDACTED]" in out, "token de bot é redigido em log")
     out2 = ids.redact("OPENROUTER_API_KEY=sk-or-v1-abcdef1234567890abcdef")
@@ -238,6 +238,11 @@ def test_production_pipeline():
     check(st2 == "pronto", "caminho feliz com stubs leva a 'pronto'")
     nart = conn.execute("SELECT COUNT(*) FROM artifacts WHERE variant_id=?", (vid_ok,)).fetchone()[0]
     check(nart >= 3, "artefatos (voz/legenda/vídeo) registrados com hash")
+    vok_row = dict(conn.execute("SELECT thumbnail_path, metadata_json FROM language_variants WHERE id=?", (vid_ok,)).fetchone())
+    check(vok_row["thumbnail_path"] and os.path.isfile(vok_row["thumbnail_path"]), "capa (SVG 9:16) gerada e existe em disco")
+    check(vok_row["metadata_json"] and "hashtags_base" in vok_row["metadata_json"], "metadados-base gravados (metadata_json)")
+    ncov = conn.execute("SELECT COUNT(*) FROM artifacts WHERE artifact_type='cover' AND variant_id=?", (vid_ok,)).fetchone()[0]
+    check(ncov == 1, "artefato de capa registrado com hash")
 
     # --- retomada após falha: backend falha 1x depois ok ---
     calls = {"n": 0}
@@ -259,6 +264,7 @@ def test_production_pipeline():
     vok = dict(conn.execute("SELECT * FROM language_variants WHERE id=?", (vid_ok,)).fetchone())
     pkg = delivery.variant_package(vok)
     check(any(l.startswith("MEDIA:") for l in pkg["media_lines"]), "entrega emite MEDIA: para arquivos reais")
+    check("capa" not in pkg["missing"], "entrega inclui a capa gerada (não consta como faltando)")
     vpending = dict(conn.execute("SELECT * FROM language_variants WHERE id=?", (vid,)).fetchone())
     pkg2 = delivery.variant_package(vpending)
     check("vídeo final 9:16" in pkg2["missing"], "entrega marca vídeo pendente como faltando (sem MEDIA falso)")
@@ -281,6 +287,10 @@ def test_pilot_runner():
     check(ncap == 6, "6 legendas geradas (evidencia real)")
     nvid = conn.execute("SELECT COUNT(*) FROM artifacts WHERE artifact_type='video'").fetchone()[0]
     check(nvid == 0, "0 videos reais (Flow manual — nada fingido)")
+    ncov = conn.execute("SELECT COUNT(*) FROM artifacts WHERE artifact_type='cover'").fetchone()[0]
+    check(ncov == 6, "6 capas geradas (evidencia real)")
+    nmeta = conn.execute("SELECT COUNT(*) FROM language_variants WHERE metadata_json IS NOT NULL").fetchone()[0]
+    check(nmeta == 6, "metadados-base gravados nas 6 variantes")
     rep = pilot.phase_d_report(conn)
     check(rep["videos_reais"] == 0 and rep["variantes_prontas"] == 0, "relatorio Fase D nao finge 6 videos prontos")
     check(len(rep["dependencias_reais_restantes"]) == 2, "relatorio registra as 2 dependencias reais (LLM vivo + Flow manual)")

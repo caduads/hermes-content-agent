@@ -8,7 +8,7 @@ from __future__ import annotations
 import os
 
 # extensões que o gateway do Hermes entrega como anexo nativo (subset relevante)
-DELIVERABLE = (".mp4", ".mov", ".webm", ".srt", ".vtt", ".png", ".jpg", ".jpeg",
+DELIVERABLE = (".mp4", ".mov", ".webm", ".srt", ".vtt", ".png", ".jpg", ".jpeg", ".svg",
                ".pdf", ".txt", ".md", ".zip", ".mp3", ".m4a", ".ogg")
 
 

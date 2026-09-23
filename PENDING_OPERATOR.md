@@ -1,15 +1,41 @@
 # PENDING_OPERATOR — o que só o Carlos pode fazer
 
+## 🔴 URGENTE — ROTACIONAR O TOKEN DO BOT DO TELEGRAM (credencial comprometida)
+Durante a auditoria encontrei o **token real do bot hardcoded** em `tests/run_tests.py` num repo **PÚBLICO**.
+Já corrigi o código (troquei por token fake), mas o token real **ficou no histórico público do git** →
+considere-o **comprometido**. Ação (só você):
+1. No Telegram, fale com **@BotFather** → `/revoke` (ou `/token`) no bot `@meu_hermes_agente01_bot` para
+   gerar um token novo. Isso invalida o antigo imediatamente.
+2. No Railway (serviço) → Variables → atualize `TELEGRAM_BOT_TOKEN` com o novo valor. O bot reconecta.
+(Também revogue, quando puder, os tokens que usei nesta sessão: o Railway API token e o GitHub PAT — ficaram
+só em memória, nunca em arquivo, mas a boa prática é revogar.)
+
 ## 🎯 AS 2 DEPENDÊNCIAS REAIS RESTANTES (o software está pronto e testado; falta operação)
 1. **Execução viva do LLM (Nemotron grátis).** A lógica de pesquisa/roteiro/localização está pronta e
-   testada, mas só produz conteúdo REAL quando o bot roda o LLM — o que acontece quando você manda uma
-   mensagem ao bot no Telegram OU no cron de domingo. Ação: mandar 1 mensagem ao `@meu_hermes_agente01_bot`
-   pedindo a pesquisa de nichos (não é gasto — o modelo é grátis). Sem canal meu para disparar o LLM do bot.
-2. **Operação manual do Google Flow (vídeo).** Não há via automatizada autorizada (créditos do produto
-   Flow provavelmente não rodam na API Veo; automatizar a web fere termos). Cada cena fica em
-   `aguardando_operacao_flow` com ordem de trabalho (`contentctl.py flow-order`). Ação: gerar as cenas no
-   Flow manualmente, baixar e informar os caminhos ao sistema. Alternativa paga (API Veo) exige sua
-   decisão de gasto — hoje NÃO usada.
+   testada, mas só produz conteúdo REAL quando o bot roda o LLM. **Auditei se havia rota autorizada para
+   disparar isso agora com acesso já configurado — NÃO há** (evidência técnica):
+   - o cron de pesquisa vive no CONTAINER (o `hermes` local é outra instância, com outros jobs);
+   - o serviço não expõe HTTP (bot é polling) → sem trigger via HTTP;
+   - a API do Railway só faz build/deploy, não exec;
+   - o único exec no container (`railway ssh`) exige **registrar uma chave SSH nova** (não existe nenhuma) →
+     isso é provisionar acesso novo, fora do que você autorizou, então **não fiz**;
+   - mandar mensagem ao bot dispararia o LLM, mas você pediu para eu **não** mandar mensagens por você.
+   **Ações possíveis (sua escolha):** (a) mandar 1 mensagem ao bot pedindo a pesquisa (grátis); (b) esperar
+   o cron de domingo 9h; (c) se quiser que EU dispare via `railway ssh`, autorize registrar uma chave SSH
+   na conta Railway (aí eu rodo `hermes cron run content-weekly-research` sem gasto).
+2. **Operação manual do Google Flow (vídeo).** Sem via automatizada autorizada. Cada cena fica em
+   `aguardando_operacao_flow` com ordem de trabalho (`contentctl.py flow-order`). Gere no Flow, baixe e
+   informe os caminhos. API Veo (paga) desabilitada por padrão — exigiria sua decisão de gasto.
+
+## ⚙️ Recomendado (defesa contra o "drift_skip" — sem gasto)
+Os crons `content-*` são criados **sem fixar modelo** e o container **não tem `LLM_MODEL`** definido. O
+mecanismo `drift_skip` do Hermes **pula crons não fixados** quando o modelo global muda (silenciosamente,
+sem produzir nada). Para blindar (já deixei o entrypoint pronto para isso), defina no Railway → Variables:
+- `CONTENT_CRON_PROVIDER=openrouter`
+- `CONTENT_CRON_MODEL=nvidia/nemotron-3.5-lightning:free`  (o modelo grátis validado)
+No próximo deploy o entrypoint fixa os 4 crons de agente nesse modelo. (Se o provider/modelo real diferir,
+ajuste esses dois valores — nada mais muda.)
+
 
 
 > Este arquivo é a lista SEPARADA que o operador pediu. O agente continua tudo o que

@@ -276,6 +276,20 @@ BK
   echo "[content-agent] Cron jobs registrados (marcador v1)."
 fi
 
+# --- content-agent: pin OPCIONAL de modelo nos crons (defesa contra drift_skip) ---
+# O drift_skip do Hermes PULA crons NAO fixados quando o modelo global muda (sem gasto, silencioso).
+# Os crons content-* sao criados sem pin. Para blinda-los, defina AMBAS as variaveis no Railway:
+#   CONTENT_CRON_PROVIDER  (ex.: openrouter)
+#   CONTENT_CRON_MODEL     (ex.: nvidia/nemotron-3.5-lightning:free  -- modelo GRATIS validado)
+# Sem elas, o comportamento nao muda. Roda a cada boot (idempotente).
+if [[ -n "${CONTENT_CRON_PROVIDER:-}" && -n "${CONTENT_CRON_MODEL:-}" ]]; then
+  echo "[content-agent] Fixando modelo dos crons (${CONTENT_CRON_PROVIDER}/${CONTENT_CRON_MODEL})..."
+  for j in content-weekly-research content-weekday-opportunities content-daily-digest content-queue-check; do
+    hermes cron edit "$j" --provider "${CONTENT_CRON_PROVIDER}" --model "${CONTENT_CRON_MODEL}" \
+      || echo "[content-agent] aviso: pin do cron ${j} nao aplicado"
+  done
+fi
+
 echo "[bootstrap] Starting Hermes gateway..."
 unset MESSAGING_CWD
 exec hermes gateway

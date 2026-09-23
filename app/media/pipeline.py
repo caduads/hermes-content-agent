@@ -92,6 +92,11 @@ def produce_variant(conn, variant_id, target_seconds=45, artifacts_dir=None,
     conn.execute("UPDATE language_variants SET caption_path=? WHERE id=?", (srt_path, variant_id)); conn.commit()
     step("legenda:ok")
 
+    # 3b) capa (SVG 9:16) + metadados — determinístico, sempre gerável
+    from app.media import cover as cover_mod
+    cover_mod.render_assets(conn, variant_id, artifacts_dir, target_seconds=target_seconds)
+    step("capa+metadados:ok")
+
     # 4) montando (Flow: manual por padrão -> vídeo pendente)
     if conn.execute("SELECT status FROM language_variants WHERE id=?", (variant_id,)).fetchone()[0] == "produzindo_voz":
         repo.variant_transition(conn, variant_id, "montando")
