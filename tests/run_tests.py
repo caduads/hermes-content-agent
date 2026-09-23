@@ -265,8 +265,30 @@ def test_production_pipeline():
     conn.close()
 
 
+def test_pilot_runner():
+    print("test_pilot_runner")
+    from app import pilot
+    base = tempfile.mkdtemp()
+    conn = dbmod.connect(os.path.join(base, "pilot.db"))
+    dbmod.migrate(conn)
+    res = pilot.run_pilot(conn, artifacts_root=os.path.join(base, "art"), target_seconds=40)
+    check(len(res["variants"]) == 6, "piloto produz 2 ideias x 3 idiomas = 6 variantes")
+    nready = conn.execute("SELECT COUNT(*) FROM language_variants WHERE status='pronto'").fetchone()[0]
+    check(nready == 0, "nenhuma variante marcada 'pronto' sem video real")
+    nrev = conn.execute("SELECT COUNT(*) FROM language_variants WHERE status='revisando'").fetchone()[0]
+    check(nrev == 6, "as 6 variantes aguardam em 'revisando' (video pendente)")
+    ncap = conn.execute("SELECT COUNT(*) FROM artifacts WHERE artifact_type='caption'").fetchone()[0]
+    check(ncap == 6, "6 legendas geradas (evidencia real)")
+    nvid = conn.execute("SELECT COUNT(*) FROM artifacts WHERE artifact_type='video'").fetchone()[0]
+    check(nvid == 0, "0 videos reais (Flow manual — nada fingido)")
+    rep = pilot.phase_d_report(conn)
+    check(rep["videos_reais"] == 0 and rep["variantes_prontas"] == 0, "relatorio Fase D nao finge 6 videos prontos")
+    check(len(rep["dependencias_reais_restantes"]) == 2, "relatorio registra as 2 dependencias reais (LLM vivo + Flow manual)")
+    conn.close()
+
+
 def main() -> bool:
-    for t in [test_state_transitions, test_idempotency, test_redaction, test_quota_reserve, test_migrations, test_media_validation, test_repo_operations, test_production_pipeline]:
+    for t in [test_state_transitions, test_idempotency, test_redaction, test_quota_reserve, test_migrations, test_media_validation, test_repo_operations, test_production_pipeline, test_pilot_runner]:
         t()
     print()
     if _failures:

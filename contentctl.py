@@ -25,6 +25,7 @@ from app.domain import states  # noqa: E402
 from app.media import pipeline as media_pipeline  # noqa: E402
 from app.media import delivery as media_delivery  # noqa: E402
 from app.media import flow as media_flow  # noqa: E402
+from app import pilot as pilot_mod  # noqa: E402
 
 DEFAULT_DB = os.environ.get("CONTENT_DB_PATH", os.path.join(REPO_ROOT, "data", "db", "content.db"))
 
@@ -219,6 +220,18 @@ def cmd_flow_order(args):
     _emit(media_flow.manual_work_order_for_variant([]))
 
 
+def cmd_pilot(args):
+    conn = dbmod.connect(args.db)
+    _emit(pilot_mod.run_pilot(conn, artifacts_root=args.artifacts_dir, target_seconds=args.seconds))
+    conn.close()
+
+
+def cmd_report(args):
+    conn = dbmod.connect(args.db)
+    _emit(pilot_mod.phase_d_report(conn))
+    conn.close()
+
+
 def cmd_selftest(args):
     from tests import run_tests
     sys.exit(0 if run_tests.main() else 1)
@@ -264,6 +277,8 @@ def build_parser():
     sp.add_argument("--seconds", type=float, default=45); sp.add_argument("--artifacts-dir", dest="artifacts_dir")
     sp = v("deliver", cmd_deliver); sp.add_argument("--idea", required=True)
     sp = v("flow-order", cmd_flow_order)
+    sp = v("pilot", cmd_pilot); sp.add_argument("--seconds", type=float, default=45); sp.add_argument("--artifacts-dir", dest="artifacts_dir")
+    sp = v("report", cmd_report)
 
     sp = sub.add_parser("selftest"); sp.set_defaults(func=cmd_selftest)
     return p

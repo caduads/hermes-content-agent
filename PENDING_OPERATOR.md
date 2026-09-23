@@ -1,5 +1,17 @@
 # PENDING_OPERATOR — o que só o Carlos pode fazer
 
+## 🎯 AS 2 DEPENDÊNCIAS REAIS RESTANTES (o software está pronto e testado; falta operação)
+1. **Execução viva do LLM (Nemotron grátis).** A lógica de pesquisa/roteiro/localização está pronta e
+   testada, mas só produz conteúdo REAL quando o bot roda o LLM — o que acontece quando você manda uma
+   mensagem ao bot no Telegram OU no cron de domingo. Ação: mandar 1 mensagem ao `@meu_hermes_agente01_bot`
+   pedindo a pesquisa de nichos (não é gasto — o modelo é grátis). Sem canal meu para disparar o LLM do bot.
+2. **Operação manual do Google Flow (vídeo).** Não há via automatizada autorizada (créditos do produto
+   Flow provavelmente não rodam na API Veo; automatizar a web fere termos). Cada cena fica em
+   `aguardando_operacao_flow` com ordem de trabalho (`contentctl.py flow-order`). Ação: gerar as cenas no
+   Flow manualmente, baixar e informar os caminhos ao sistema. Alternativa paga (API Veo) exige sua
+   decisão de gasto — hoje NÃO usada.
+
+
 > Este arquivo é a lista SEPARADA que o operador pediu. O agente continua tudo o que
 > consegue sozinho; aqui ficam apenas ações/decisões que exigem contas, acessos ou escolhas.
 > Marcações: [ ] pendente • [x] resolvido.
