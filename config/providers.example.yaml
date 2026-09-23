@@ -1,0 +1,37 @@
+# Exemplo de roteamento de provedores (SOMENTE NOMES — nunca valores reais).
+# A camada de roteamento escolhe o provedor por capacidade e prioridade; cota grátis
+# esgotada -> fallback autorizado -> espera -> pago (só se habilitado) -> falha controlada.
+# As CHAVES ficam em variáveis de ambiente (nomes oficiais que o Hermes reconhece), nunca aqui.
+
+politica_fallback:
+  - provedor_gratuito_adequado
+  - fallback_gratuito_autorizado
+  - aguardar_renovacao_de_cota
+  - provedor_pago_somente_se_habilitado_e_dentro_do_teto
+  - falha_controlada_com_aviso
+
+provedores:
+  - id: openrouter:nvidia/nemotron-3.5-lightning:free
+    env_key: OPENROUTER_API_KEY          # nome da variavel; valor no ambiente
+    capacidades: [texto, raciocinio, ferramentas, traducao, revisao]
+    contexto: 1000000
+    custo_apos_cota: 0                    # modelo gratuito
+    prioridade: 1
+    uso_permitido: producao_mvp
+  - id: openrouter:qwen/qwen3.8-27b:free
+    env_key: OPENROUTER_API_KEY
+    capacidades: [texto, raciocinio, traducao]
+    contexto: 262144
+    custo_apos_cota: 0
+    prioridade: 2
+    uso_permitido: fallback
+  # Exemplos a VALIDAR no ambiente real antes de ativar (nao presumir cota/termos):
+  # - id: dashscope:qwen-...            env_key: DASHSCOPE_API_KEY   # Qwen via Alibaba Model Studio
+  # - id: nvidia:...                    env_key: (avaliar acesso de avaliacao x licenca de producao)
+
+voz:
+  provedor_padrao: edge-tts             # gratuito (precisa ffmpeg no container) — nativo do Hermes
+  # alternativas pagas exigem decisao de gasto: elevenlabs (ELEVENLABS_API_KEY), openai (VOICE_TOOLS_OPENAI_KEY)
+
+video:
+  flow_modo: manual                     # aguardando_operacao_flow; API Veo (paga) desabilitada por padrao
