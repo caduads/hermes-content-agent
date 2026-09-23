@@ -5,10 +5,17 @@
 > Marcações: [ ] pendente • [x] resolvido.
 
 ## Bloqueia a IMPLANTAÇÃO (deploy no Railway) — resolver antes de subir skills
-- [ ] **Forkar** `lovexbytes/hermes-railway-template` para a sua conta do GitHub e, no serviço do
-      Railway (Settings → Source), **trocar a origem** para o seu fork. Sem isso não dá para versionar
-      e reimplantar nossas skills. (O agente prepara o `entrypoint` de sincronização assim que o fork existir.)
-- [ ] Dar ao agente **acesso de push** ao fork (ou você aplica os commits que o agente preparar).
+- [ ] **Token clássico do GitHub** (1 minuto): os tokens fine-grained (`github_pat_...`) não conseguem
+      criar/forkar repo e só enxergam repositórios pré-selecionados — travaram a automação em 22/09.
+      Gerar em github.com/settings/tokens → **Generate new token (classic)** (valor começa com `ghp_`)
+      → escopo **`repo`** → colar no chat. Com ele o agente cria o repo, sobe o código e reaponta o Railway sozinho.
+- [ ] (Alternativa) Criar o repo `hermes-content-agent` **e** gerar o token fine-grained com
+      **Repository access = All repositories** + **Contents: Read and write** (senão o token não enxerga o repo novo).
+- [ ] Depois do repo no ar: o agente estende o `entrypoint.sh` (fork) para sincronizar `skills/` e `config`
+      para `/data/.hermes/` no boot, e reaponta o serviço do Railway para o novo repo.
+
+> Estado em 22/09: código versionado LOCALMENTE em `C:\Users\carlo\Documents\ACHADINHOS\hermes-content-agent`
+> (commit feito). Falta só publicar no GitHub + reapontar o Railway — não bloqueia continuar o desenvolvimento.
 
 ## Decisões de produto (não bloqueiam a base; têm default seguro de desenvolvimento)
 - [ ] Países-alvo de **inglês** e **espanhol** (hoje: linguagem internacional neutra).
