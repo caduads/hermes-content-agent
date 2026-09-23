@@ -92,8 +92,43 @@ def test_migrations():
     conn.close()
 
 
+def test_media_validation():
+    print("test_media_validation")
+    from app.domain import media
+    good = {
+        "streams": [
+            {"codec_type": "video", "codec_name": "h264", "width": 1080, "height": 1920},
+            {"codec_type": "audio", "codec_name": "aac"},
+        ],
+        "format": {"duration": "45.0"},
+    }
+    r = media.evaluate_probe(good)
+    check(r["ok"], "vídeo 1080x1920 h264 c/ áudio 45s aprovado")
+
+    bad_ratio = {
+        "streams": [
+            {"codec_type": "video", "codec_name": "h264", "width": 1920, "height": 1080},
+            {"codec_type": "audio", "codec_name": "aac"},
+        ],
+        "format": {"duration": "45.0"},
+    }
+    r2 = media.evaluate_probe(bad_ratio)
+    check(not r2["ok"] and not r2["checks"]["proporcao_9_16"], "vídeo 16:9 reprovado (proporção)")
+
+    no_audio = {
+        "streams": [{"codec_type": "video", "codec_name": "h264", "width": 1080, "height": 1920}],
+        "format": {"duration": "45.0"},
+    }
+    r3 = media.evaluate_probe(no_audio)
+    check(not r3["ok"] and not r3["checks"]["tem_audio"], "vídeo sem áudio reprovado")
+
+    too_long = dict(good); too_long["format"] = {"duration": "600"}
+    r4 = media.evaluate_probe(too_long)
+    check(not r4["ok"] and not r4["checks"]["duracao_ok"], "vídeo de 600s reprovado (duração)")
+
+
 def main() -> bool:
-    for t in [test_state_transitions, test_idempotency, test_redaction, test_quota_reserve, test_migrations]:
+    for t in [test_state_transitions, test_idempotency, test_redaction, test_quota_reserve, test_migrations, test_media_validation]:
         t()
     print()
     if _failures:
