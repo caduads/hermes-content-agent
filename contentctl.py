@@ -64,6 +64,35 @@ def cmd_healthcheck(args):
     sys.exit(0 if ok else 1)
 
 
+def _counts_by_status(conn, table):
+    rows = conn.execute(f"SELECT status, COUNT(*) c FROM {table} GROUP BY status").fetchall()
+    return {r[0]: r[1] for r in rows}
+
+
+def cmd_status(args):
+    """Resumo operacional do Coordenador (briefing 6.1), lido do banco."""
+    conn = dbmod.connect(args.db)
+    ideas = _counts_by_status(conn, "ideas")
+    variants = _counts_by_status(conn, "language_variants")
+    jobs = _counts_by_status(conn, "jobs")
+    niches = _counts_by_status(conn, "niches")
+    est = conn.execute("SELECT COALESCE(SUM(estimated_amount),0), COALESCE(SUM(actual_amount),0) FROM usage_events").fetchone()
+    failed = (jobs.get("falha", 0) + ideas.get("falha", 0) + variants.get("falha", 0))
+    print("=== STATUS content-agent ===")
+    print(f"nichos: {niches or 'nenhum'}")
+    print(f"ideias: {ideas or 'nenhuma'}")
+    print(f"variantes: {variants or 'nenhuma'}")
+    print(f"jobs: {jobs or 'nenhum'}")
+    print(f"custo estimado/real: {est[0]:.2f} / {est[1]:.2f}")
+    print(f"itens com falha: {failed}")
+    if not ideas and not niches:
+        print("proxima acao: rodar /pesquisar_nichos (nenhuma ideia ou nicho ainda)")
+    else:
+        pend = [s for s in ("selecionada", "roteirizando", "produzindo", "revisando") if ideas.get(s)]
+        print("proxima acao:", ("processar ideias em " + ", ".join(pend)) if pend else "aguardando novas tarefas")
+    conn.close()
+
+
 def cmd_selftest(args):
     from tests import run_tests
     sys.exit(0 if run_tests.main() else 1)
@@ -72,7 +101,8 @@ def cmd_selftest(args):
 def build_parser():
     p = argparse.ArgumentParser(prog="contentctl")
     sub = p.add_subparsers(dest="cmd", required=True)
-    for name, fn in [("db-init", cmd_db_init), ("db-check", cmd_db_check), ("healthcheck", cmd_healthcheck)]:
+    for name, fn in [("db-init", cmd_db_init), ("db-check", cmd_db_check),
+                     ("healthcheck", cmd_healthcheck), ("status", cmd_status)]:
         sp = sub.add_parser(name)
         sp.add_argument("--db", default=DEFAULT_DB)
         sp.set_defaults(func=fn)

@@ -4,6 +4,18 @@
 > consegue sozinho; aqui ficam apenas ações/decisões que exigem contas, acessos ou escolhas.
 > Marcações: [ ] pendente • [x] resolvido.
 
+## 🔴 BLOQUEIO ATUAL (22/09, fim do dia): Railway workspace RESTRINGIDO
+- [ ] O Railway retornou: **"Your workspace has been restricted. Please attach a payment method or
+      contact support to resolve this."** O trial gratuito ($5/30 dias) foi esgotado/sinalizado.
+      **Efeito:** nenhum deploy roda — todos viraram REMOVED e o **bot está fora do ar** até você resolver.
+      **Só você resolve** (decisão de conta/pagamento). Opções:
+      1. Anexar método de pagamento no Railway (Settings → Billing) — decisão de gasto (você pediu "pergunto antes").
+      2. **Pivotar o deploy para a VPS Hostinger** (o alvo real do briefing) — também é compra, decisão sua.
+      3. Deixar o código como está (100% pronto) e decidir a infra depois.
+- [ ] Observação: o `serviceConnect` via API reportou sucesso mas NÃO repontou o serviço (continuou no
+      upstream `lovexbytes`); repontar de forma confiável é pela dashboard (Settings → Source) — mas isso
+      só importa depois que a restrição do workspace for resolvida.
+
 ## Bloqueia a IMPLANTAÇÃO (deploy no Railway) — resolver antes de subir skills
 - [ ] **Token clássico do GitHub** (1 minuto): os tokens fine-grained (`github_pat_...`) não conseguem
       criar/forkar repo e só enxergam repositórios pré-selecionados — travaram a automação em 22/09.
