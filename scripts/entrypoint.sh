@@ -215,6 +215,21 @@ if [[ -z "${TELEGRAM_ALLOWED_USERS:-}${DISCORD_ALLOWED_USERS:-}${SLACK_ALLOWED_U
   fi
 fi
 
+# --- content-agent: sincroniza skills/config e prepara o banco de dominio ---
+CONTENT_SRC="/app/content-agent"
+if [[ -d "${CONTENT_SRC}" ]]; then
+  echo "[content-agent] Sincronizando skills e config para ${HERMES_HOME}..."
+  mkdir -p "${HERMES_HOME}/skills" "/data/content-agent/db" "/data/content-agent/artifacts"
+  cp -r "${CONTENT_SRC}/skills/." "${HERMES_HOME}/skills/" 2>/dev/null || true
+  cp -f "${CONTENT_SRC}/config/project.yaml" "/data/content-agent/project.yaml" 2>/dev/null || true
+  export CONTENT_DB_PATH="${CONTENT_DB_PATH:-/data/content-agent/db/content.db}"
+  if command -v python >/dev/null 2>&1; then
+    ( cd "${CONTENT_SRC}" && python contentctl.py db-init --db "${CONTENT_DB_PATH}" ) \
+      || echo "[content-agent] aviso: db-init falhou (segue mesmo assim)"
+  fi
+  echo "[content-agent] Sincronizacao concluida."
+fi
+
 echo "[bootstrap] Starting Hermes gateway..."
 unset MESSAGING_CWD
 exec hermes gateway

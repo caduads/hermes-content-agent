@@ -70,6 +70,12 @@ ENV HERMES_HOME=/data/.hermes \
 
 WORKDIR /app
 COPY --chmod=0755 scripts/entrypoint.sh /app/scripts/entrypoint.sh
+# content-agent: nossos ativos entram na imagem; o entrypoint sincroniza para /data/.hermes no boot
+COPY app /app/content-agent/app
+COPY skills /app/content-agent/skills
+COPY config /app/content-agent/config
+COPY migrations /app/content-agent/migrations
+COPY contentctl.py /app/content-agent/contentctl.py
 RUN mv /opt/hermes/docker/stage2-hook.sh /opt/hermes/docker/stage2-hook-upstream.sh
 COPY --chmod=0755 <<'EOF' /opt/hermes/docker/stage2-hook.sh
 #!/bin/sh
