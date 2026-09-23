@@ -16,6 +16,16 @@ e caminhos na `language_variants` (`voice_path`, `caption_path`, `video_path`, `
 4. Legendas: gerar SRT/VTT sincronizado.
 5. Montagem/export: 9:16, master limpo + exportações por plataforma.
 
+## Comandos reais
+Rode a partir de `cd /app/content-agent`.
+- Produzir uma variante (voz→legenda→montagem→revisão, com retomada e limite de 2 revisões):
+  `python contentctl.py produce --variant <id> --seconds 45`
+  Em modo padrão a voz usa o TTS nativo do Hermes e o vídeo fica `aguardando_operacao_flow` (manual).
+  O relatório traz `pending` (o que falta) e `blocked` (se estourou as 2 revisões).
+- Ver a ordem de trabalho manual do Flow: `python contentctl.py flow-order`.
+- Montar a entrega de uma ideia (tags MEDIA só dos arquivos que existem): `python contentctl.py deliver --idea <id>`.
+  Emita as linhas `MEDIA:<caminho>` na resposta para o Hermes anexar os arquivos no Telegram.
+
 ## Google Flow (regra crítica)
 Não presumir consumo dos créditos do produto Flow via API Veo (faturamentos distintos). Enquanto não houver
 via oficialmente permitida validada, o job de vídeo entra no estado **`aguardando_operacao_flow`** com

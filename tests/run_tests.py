@@ -176,8 +176,97 @@ def test_repo_operations():
     conn.close()
 
 
+def test_production_pipeline():
+    print("test_production_pipeline")
+    from app.media import subtitles, flow, delivery, pipeline
+    from app.persistence import repo
+
+    # --- legendas ---
+    srt = subtitles.to_srt("Primeira frase. Segunda frase um pouco maior aqui. Terceira.", 30)
+    v = subtitles.validate_srt(srt, 30)
+    check(v["ok"] and v["cues"] >= 2, "SRT gerado é válido e tem múltiplos cues")
+    bad = subtitles.validate_srt("1\n00:00:01,000 --> 00:09:00,000\nfora da duração\n", 30)
+    check(not bad["ok"], "SRT com cue além da duração é reprovado")
+
+    # --- flow manual vs api ---
+    plan = flow.plan_scene({"index": 1, "prompt": "cena", "seconds": 8})
+    check(plan["route"] == "manual" and plan["state"] == "aguardando_operacao_flow", "Flow em modo manual")
+    import os as _os
+    _os.environ["CONTENT_FLOW_MODE"] = "api"
+    try:
+        flow.plan_scene({"index": 1})
+        check(False, "Flow api deveria ser bloqueado")
+    except flow.FlowNotAuthorized:
+        check(True, "Flow api bloqueado (sem autorização/gasto)")
+    finally:
+        _os.environ["CONTENT_FLOW_MODE"] = "manual"
+
+    # --- setup banco + ideia + variante ---
+    base = tempfile.mkdtemp()
+    conn = dbmod.connect(os.path.join(base, "p.db"))
+    dbmod.migrate(conn)
+    iid = repo.idea_add(conn, "piloto")
+    created = repo.variants_init(conn, iid)
+    vid = dict(created)["pt-BR"]
+    conn.execute("UPDATE language_variants SET script=? WHERE id=?",
+                 ("Roteiro de teste. Segunda frase. Terceira frase final.", vid)); conn.commit()
+
+    # --- caminho manual (backends padrão): legenda ok, voz+vídeo pendentes, não bloqueado ---
+    rep = pipeline.produce_variant(conn, vid, target_seconds=30, artifacts_dir=os.path.join(base, "a1"))
+    check("legenda:ok" in rep["steps"], "pipeline gera legenda mesmo em modo manual")
+    check(any("Flow manual" in p for p in rep["pending"]) and not rep["blocked"],
+          "vídeo fica pendente (Flow manual) e não bloqueia")
+    st = conn.execute("SELECT status FROM language_variants WHERE id=?", (vid,)).fetchone()[0]
+    check(st == "revisando", "variante aguarda em 'revisando' com pendências")
+
+    # --- caminho feliz com stubs (arquivos reais) -> pronto ---
+    class StubTTS:
+        def synthesize(self, text, out):
+            open(out, "wb").write(b"AUDIO"); return out
+    class StubMontage:
+        def assemble(self, plan, voice, srt_path, out):
+            open(out, "wb").write(b"VIDEO"); return out
+    vid2 = dict(repo.variants_init(conn, iid)) or {}
+    # variants já existem; cria nova ideia para caminho limpo
+    iid2 = repo.idea_add(conn, "piloto2")
+    vid_ok = dict(repo.variants_init(conn, iid2))["en"]
+    conn.execute("UPDATE language_variants SET script=? WHERE id=?", ("Frase um. Frase dois.", vid_ok)); conn.commit()
+    rep2 = pipeline.produce_variant(conn, vid_ok, target_seconds=20,
+                                    artifacts_dir=os.path.join(base, "a2"),
+                                    tts_backend=StubTTS(), montage_backend=StubMontage())
+    st2 = conn.execute("SELECT status FROM language_variants WHERE id=?", (vid_ok,)).fetchone()[0]
+    check(st2 == "pronto", "caminho feliz com stubs leva a 'pronto'")
+    nart = conn.execute("SELECT COUNT(*) FROM artifacts WHERE variant_id=?", (vid_ok,)).fetchone()[0]
+    check(nart >= 3, "artefatos (voz/legenda/vídeo) registrados com hash")
+
+    # --- retomada após falha: backend falha 1x depois ok ---
+    calls = {"n": 0}
+    class FlakyTTS:
+        def synthesize(self, text, out):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                raise RuntimeError("tts caiu")
+            open(out, "wb").write(b"AUDIO"); return out
+    iid3 = repo.idea_add(conn, "piloto3")
+    vid_f = dict(repo.variants_init(conn, iid3))["es"]
+    conn.execute("UPDATE language_variants SET script=? WHERE id=?", ("Uno. Dos.", vid_f)); conn.commit()
+    rep3 = pipeline.produce_variant(conn, vid_f, target_seconds=20,
+                                    artifacts_dir=os.path.join(base, "a3"),
+                                    tts_backend=FlakyTTS(), montage_backend=StubMontage())
+    check("voz:ok" in rep3["steps"] and calls["n"] == 2, "retomada após falha: 2ª tentativa do TTS sucede")
+
+    # --- entrega: MEDIA só para arquivos existentes ---
+    vok = dict(conn.execute("SELECT * FROM language_variants WHERE id=?", (vid_ok,)).fetchone())
+    pkg = delivery.variant_package(vok)
+    check(any(l.startswith("MEDIA:") for l in pkg["media_lines"]), "entrega emite MEDIA: para arquivos reais")
+    vpending = dict(conn.execute("SELECT * FROM language_variants WHERE id=?", (vid,)).fetchone())
+    pkg2 = delivery.variant_package(vpending)
+    check("vídeo final 9:16" in pkg2["missing"], "entrega marca vídeo pendente como faltando (sem MEDIA falso)")
+    conn.close()
+
+
 def main() -> bool:
-    for t in [test_state_transitions, test_idempotency, test_redaction, test_quota_reserve, test_migrations, test_media_validation, test_repo_operations]:
+    for t in [test_state_transitions, test_idempotency, test_redaction, test_quota_reserve, test_migrations, test_media_validation, test_repo_operations, test_production_pipeline]:
         t()
     print()
     if _failures:

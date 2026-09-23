@@ -22,6 +22,9 @@ if REPO_ROOT not in sys.path:
 from app.persistence import db as dbmod  # noqa: E402
 from app.persistence import repo  # noqa: E402
 from app.domain import states  # noqa: E402
+from app.media import pipeline as media_pipeline  # noqa: E402
+from app.media import delivery as media_delivery  # noqa: E402
+from app.media import flow as media_flow  # noqa: E402
 
 DEFAULT_DB = os.environ.get("CONTENT_DB_PATH", os.path.join(REPO_ROOT, "data", "db", "content.db"))
 
@@ -194,6 +197,28 @@ def cmd_list(args):
     conn.close()
 
 
+def cmd_produce(args):
+    conn = dbmod.connect(args.db)
+    rep = media_pipeline.produce_variant(conn, args.variant, target_seconds=args.seconds,
+                                         artifacts_dir=args.artifacts_dir)
+    _emit(rep)
+    conn.close()
+
+
+def cmd_deliver(args):
+    conn = dbmod.connect(args.db)
+    idea = conn.execute("SELECT title FROM ideas WHERE id=?", (args.idea,)).fetchone()
+    variants = [dict(r) for r in conn.execute(
+        "SELECT * FROM language_variants WHERE idea_id=? ORDER BY locale", (args.idea,)).fetchall()]
+    print(media_delivery.idea_delivery(idea[0] if idea else args.idea, variants))
+    conn.close()
+
+
+def cmd_flow_order(args):
+    # Ordem de trabalho manual do Flow para uma variante (sem gerar nada, sem gasto).
+    _emit(media_flow.manual_work_order_for_variant([]))
+
+
 def cmd_selftest(args):
     from tests import run_tests
     sys.exit(0 if run_tests.main() else 1)
@@ -235,6 +260,10 @@ def build_parser():
     sp.add_argument("--actual", type=float, default=0.0); sp.add_argument("--currency")
     sp = v("list", cmd_list); sp.add_argument("--entity", required=True, choices=["niches", "ideas", "sources", "variants", "jobs"])
     sp.add_argument("--limit", type=int, default=10)
+    sp = v("produce", cmd_produce); sp.add_argument("--variant", required=True)
+    sp.add_argument("--seconds", type=float, default=45); sp.add_argument("--artifacts-dir", dest="artifacts_dir")
+    sp = v("deliver", cmd_deliver); sp.add_argument("--idea", required=True)
+    sp = v("flow-order", cmd_flow_order)
 
     sp = sub.add_parser("selftest"); sp.set_defaults(func=cmd_selftest)
     return p
