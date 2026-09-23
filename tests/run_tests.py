@@ -127,8 +127,57 @@ def test_media_validation():
     check(not r4["ok"] and not r4["checks"]["duracao_ok"], "vídeo de 600s reprovado (duração)")
 
 
+def test_repo_operations():
+    print("test_repo_operations")
+    from app.persistence import repo
+    tmp = os.path.join(tempfile.mkdtemp(), "r.db")
+    conn = dbmod.connect(tmp)
+    dbmod.migrate(conn)
+
+    nid = repo.niche_add(conn, "ferramentas digitais")
+    iid = repo.idea_add(conn, "3 apps que economizam 1h/dia", niche_id=nid, objective="educacao")
+    check(iid.startswith("idea_"), "idea_add cria ideia")
+
+    # dedup de fontes
+    s1, new1 = repo.source_add(conn, "https://Exemplo.com/Video ", platform="tiktok")
+    s2, new2 = repo.source_add(conn, "https://exemplo.com/video", platform="tiktok")
+    check(new1 and not new2 and s1 == s2, "source_add deduplica pela URL normalizada")
+
+    # ciclo de estados válido
+    repo.idea_transition(conn, iid, "pesquisando")
+    repo.idea_transition(conn, iid, "analisando")
+    repo.idea_transition(conn, iid, "selecionada")
+    st = conn.execute("SELECT status FROM ideas WHERE id=?", (iid,)).fetchone()[0]
+    check(st == "selecionada", "idea_transition segue o fluxo válido")
+
+    # transição inválida barrada
+    try:
+        repo.idea_transition(conn, iid, "concluida")
+        check(False, "transição inválida deveria levantar")
+    except states.InvalidTransition:
+        check(True, "idea_transition barra pulo inválido (selecionada->concluida)")
+
+    # variantes: 3 locales, idempotente
+    created = repo.variants_init(conn, iid)
+    again = repo.variants_init(conn, iid)
+    check(len(created) == 3 and len(again) == 0, "variants_init cria 3 locales e é idempotente")
+
+    # jobs idempotentes
+    j1, n1 = repo.job_start(conn, "voz", idea_id=iid, input_payload={"loc": "pt-BR"})
+    j2, n2 = repo.job_start(conn, "voz", idea_id=iid, input_payload={"loc": "pt-BR"})
+    check(n1 and not n2 and j1 == j2, "job_start é idempotente por input_hash")
+    repo.job_finish(conn, j1, ok=True)
+    fin = conn.execute("SELECT status FROM jobs WHERE id=?", (j1,)).fetchone()[0]
+    check(fin == "concluido", "job_finish marca concluido")
+
+    # auditoria registrada
+    n_audit = conn.execute("SELECT COUNT(*) FROM audit_events").fetchone()[0]
+    check(n_audit >= 5, "audit_events registra as operações")
+    conn.close()
+
+
 def main() -> bool:
-    for t in [test_state_transitions, test_idempotency, test_redaction, test_quota_reserve, test_migrations, test_media_validation]:
+    for t in [test_state_transitions, test_idempotency, test_redaction, test_quota_reserve, test_migrations, test_media_validation, test_repo_operations]:
         t()
     print()
     if _failures:
