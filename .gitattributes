@@ -1,0 +1,3 @@
+# Scripts de shell SEMPRE com LF (senao o container Linux quebra no heredoc/shebang)
+*.sh text eol=lf
+scripts/entrypoint.sh text eol=lf

@@ -33,8 +33,17 @@ Valide transições com `app/domain/states.py` (levanta `InvalidTransition`). Um
 `/status /pesquisar_nichos /listar_ideias /produzir <id> /pausar /retomar /custos /falhas /cancelar <id> /ajuda`
 Também linguagem natural. Pausar não corrompe geração em andamento: conclua a operação externa ou grave estado seguro antes de parar.
 
-## Ferramentas
-- `python contentctl.py db-check` — estado do banco.
-- `python contentctl.py healthcheck` — saúde operacional.
-- Delegue pesquisa à skill `research`, análise à `opportunity-analysis`, etc. (à medida que existirem).
-- Registre toda decisão em `audit_events`.
+## Ferramentas (comandos reais)
+Rode a partir de `cd /app/content-agent`. Banco = `$CONTENT_DB_PATH`.
+- `python contentctl.py status` — resumo operacional (tarefas por estado, custo, próxima ação).
+- `python contentctl.py healthcheck` — saúde do banco/schema.
+- `python contentctl.py list --entity ideas|niches|sources|variants|jobs` — inspecionar estado.
+- `python contentctl.py idea-add --title "<t>" [--niche <id>] [--objective <o>]` — nova ideia.
+- `python contentctl.py idea-transition --id <idea> --to <estado>` — muda estado (valida; devolve `ok:false` se inválido).
+- `python contentctl.py variants-init --idea <id>` — cria as 3 variantes (pt-BR/en/es).
+- `python contentctl.py job-start --type <voz|video|...> [--idea <id>] [--variant <id>] --payload '{...}'` — idempotente (devolve `created:false` se já existe).
+- `python contentctl.py job-finish --id <job> [--failed --error-code X --error-message Y]`.
+- `python contentctl.py usage-add --unit credito --estimated N --actual M` — registra custo.
+Delegue pesquisa à skill `research`, análise à `opportunity-analysis`, roteiro à `scripting`,
+adaptação à `localization`, produção à `production`, revisão à `review`.
+Registre decisões: cada `*-transition` já grava em `audit_events`.

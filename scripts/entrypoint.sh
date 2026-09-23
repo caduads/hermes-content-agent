@@ -230,6 +230,52 @@ if [[ -d "${CONTENT_SRC}" ]]; then
   echo "[content-agent] Sincronizacao concluida."
 fi
 
+# --- content-agent: registrar cron jobs (idempotente por marcador versionado) ---
+CRON_MARKER="${HERMES_HOME}/.content-agent-cron-seeded-v1"
+if [[ -d "/app/content-agent" && ! -f "${CRON_MARKER}" ]]; then
+  echo "[content-agent] Registrando cron jobs..."
+  CA_DELIVER="${CONTENT_CRON_DELIVER:-telegram:8974266170}"
+  hermes cron create "every sunday 9am" \
+    "Voce e o content-agent. Rode a skill research: compare ate 3 nichos candidatos com >=10 fontes de >=5 criadores quando as fontes permitirem. Grave cada fonte com 'cd /app/content-agent && python contentctl.py source-add ...' e cada nicho com niche-add. Entregue ranking com evidencias e limitacoes. Nunca invente metricas; sem dado use desconhecido." \
+    --skill research --name content-weekly-research --deliver "$CA_DELIVER" \
+    || echo "[content-agent] aviso: cron weekly-research nao criado"
+  hermes cron create "weekdays at 8am" \
+    "Voce e o content-agent. Atualizacao curta: cheque sinais novos nos nichos ja registrados (cd /app/content-agent && python contentctl.py list --entity niches) e registre fontes novas relevantes. Se nada relevante mudou, responda apenas [SILENT]." \
+    --skill research --continuity --name content-weekday-opportunities --deliver "$CA_DELIVER" \
+    || echo "[content-agent] aviso: cron weekday-opportunities nao criado"
+  hermes cron create "daily at 7am" \
+    "Voce e o coordenador do content-agent. Rode 'cd /app/content-agent && python contentctl.py status' e entregue um resumo do que mudou (ideias por estado, custos, proxima acao, falhas). Se nada mudou, responda apenas [SILENT]." \
+    --skill coordinator --continuity --name content-daily-digest --deliver "$CA_DELIVER" \
+    || echo "[content-agent] aviso: cron daily-digest nao criado"
+  hermes cron create "every 6h" \
+    "Coordenador do content-agent: verifique jobs travados e itens em falha (cd /app/content-agent && python contentctl.py list --entity jobs; python contentctl.py status). Se houver bloqueio real, reporte; senao responda apenas [SILENT]." \
+    --skill coordinator --name content-queue-check --deliver "$CA_DELIVER" \
+    || echo "[content-agent] aviso: cron queue-check nao criado"
+  # backup diario (no-agent): script em $HERMES_HOME/scripts
+  mkdir -p "${HERMES_HOME}/scripts"
+  cat > "${HERMES_HOME}/scripts/content-backup.sh" <<'BK'
+#!/bin/bash
+set -e
+DB="${CONTENT_DB_PATH:-/data/content-agent/db/content.db}"
+BKDIR="/data/content-agent/backups"
+mkdir -p "$BKDIR"
+if [ -f "$DB" ]; then
+  ts=$(date -u +%Y%m%dT%H%M%SZ)
+  cp "$DB" "$BKDIR/content-$ts.db"
+  ls -1t "$BKDIR"/content-*.db 2>/dev/null | tail -n +15 | xargs -r rm -f
+  echo "[content-agent] backup ok: content-$ts.db"
+else
+  echo "[content-agent] backup: banco ainda nao existe"
+fi
+BK
+  chmod +x "${HERMES_HOME}/scripts/content-backup.sh"
+  hermes cron create "daily at 3am" --no-agent --script content-backup.sh \
+    --name content-daily-backup --deliver "$CA_DELIVER" \
+    || echo "[content-agent] aviso: cron daily-backup nao criado"
+  touch "${CRON_MARKER}"
+  echo "[content-agent] Cron jobs registrados (marcador v1)."
+fi
+
 echo "[bootstrap] Starting Hermes gateway..."
 unset MESSAGING_CWD
 exec hermes gateway

@@ -25,9 +25,19 @@ mede recorrência, distribuição entre criadores e sinais de intenção.
 - resumo do gancho, estrutura e comentários relevantes (`summary`)
 - limitações da coleta (`limitations`)
 
-## Como gravar
-Use `app/persistence/db.py` (insert em `sources`), gere `id` com `app/domain/ids.new_id('src')`
-e `content_hash` com `ids.input_hash(url_normalizada)`. Duplicatas (mesmo hash) não são reinseridas.
+## Como gravar (comandos reais)
+O `contentctl.py` fica em `/app/content-agent/` no container (use `cd /app/content-agent`). O banco é
+`$CONTENT_DB_PATH` (padrão `/data/content-agent/db/content.db`) — os verbos já usam esse default.
+
+- Registrar um nicho candidato:
+  `python contentctl.py niche-add --name "<nicho>" --description "<resumo>"`  → devolve `niche_id`
+- Registrar cada fonte (dedup automática por URL):
+  `python contentctl.py source-add --url "<url>" --platform "<tiktok|youtube|...>" --creator "<canal>" --published-at "<YYYY-MM-DD|>" --language "<pt|en|es>" --metrics '{"views":123}' --summary "<gancho/estrutura>" --limitations "<o que faltou>"`
+- Pontuar o nicho (4 notas separadas, 0-5): feito pela skill `opportunity-analysis` via `niche-score`.
+- Listar o que já existe: `python contentctl.py list --entity sources` / `--entity niches`.
+
+Nunca invente métrica/data: campo sem dado fica vazio (aparece como `desconhecido` no relatório).
+Duplicatas (mesma URL normalizada) retornam `"created": false` — não conte como fonte nova.
 
 ## Nichos: critérios de comparação (resumo)
 recorrência do problema; tendência entre coletas (sem inventar velocidade); distribuição entre criadores;
